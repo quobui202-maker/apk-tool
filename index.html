@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>HTML to APK Builder</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{--primary:#6366F1;--primary-dark:#4F46E5;--primary-light:#818CF8;--bg:#0F172A;--card:rgba(255,255,255,0.06);--text:#F1F5F9;--text-2:#94A3B8;--border:rgba(255,255,255,0.12);--success:#10B981;--danger:#EF4444;--warning:#F59E0B;--radius:16px}
+html,body{height:100%;overflow:hidden}
+body{font-family:-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.5;display:flex;flex-direction:column;position:relative}
+body::before{content:'';position:fixed;inset:-50%;z-index:-1;filter:blur(40px);background:radial-gradient(circle at 20% 20%,rgba(99,102,241,0.35),transparent 50%),radial-gradient(circle at 80% 80%,rgba(139,92,246,0.35),transparent 50%);animation:bgFloat 20s ease-in-out infinite}
+@keyframes bgFloat{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(5%,-5%) scale(1.1)}}
+.header{padding:max(env(safe-area-inset-top),14px) 18px 12px;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(20px);background:rgba(15,23,42,0.75);border-bottom:1px solid var(--border);z-index:10;flex-shrink:0}
+.header h1{font-size:17px;font-weight:700;background:linear-gradient(135deg,#A5B4FC,#C4B5FD);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.header .badge{font-size:10px;padding:4px 10px;border-radius:10px;background:rgba(148,163,184,0.15);color:#94A3B8;border:1px solid rgba(148,163,184,0.3);font-weight:600}
+.header .badge.ok{background:rgba(16,185,129,0.15);color:#6EE7B7;border-color:rgba(16,185,129,0.3)}
+.header .badge.err{background:rgba(239,68,68,0.15);color:#FCA5A5;border-color:rgba(239,68,68,0.3)}
+.user-bar{padding:12px 18px;display:flex;align-items:center;gap:12px;background:rgba(16,185,129,0.08);border-bottom:1px solid rgba(16,185,129,0.2);animation:slideDown .4s cubic-bezier(.16,1,.3,1)}
+@keyframes slideDown{from{opacity:0;transform:translateY(-20px)}to{opacity:1;transform:translateY(0)}}
+.user-bar.hidden{display:none}
+.user-avatar{width:40px;height:40px;border-radius:50%;border:2px solid rgba(16,185,129,0.4);object-fit:cover;flex-shrink:0;background:linear-gradient(135deg,var(--primary),var(--primary-dark))}
+.user-info{flex:1;min-width:0}
+.user-info .name{font-size:14px;font-weight:700;color:#6EE7B7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.user-info .repo{font-size:11.5px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.btn-logout{padding:7px 14px;border-radius:8px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#FCA5A5;font-size:11.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s;white-space:nowrap}
+.btn-logout:active{background:rgba(239,68,68,0.25);transform:scale(.95)}
+.main{flex:1;overflow-y:auto;padding:14px;padding-bottom:max(env(safe-area-inset-bottom),130px)}
+.main::-webkit-scrollbar{width:0}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px;backdrop-filter:blur(10px);animation:slideUp .5s cubic-bezier(.16,1,.3,1) backwards}
+@keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.card-title{font-size:14px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.06)}
+.card-title .left{display:flex;align-items:center;gap:9px}
+.card-title .num{width:24px;height:24px;border-radius:7px;background:linear-gradient(135deg,var(--primary),var(--primary-dark));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0}
+.tabs{display:flex;gap:5px;background:rgba(0,0,0,0.3);padding:4px;border-radius:11px;margin-bottom:12px}
+.tab{flex:1;padding:9px 6px;text-align:center;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:all .25s;color:var(--text-2);border:none;background:transparent;font-family:inherit}
+.tab.active{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;box-shadow:0 4px 12px rgba(99,102,241,0.4)}
+.tab-content{display:none}
+.tab-content.active{display:block;animation:fadeIn .3s}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.editor-wrap{border-radius:12px;overflow:hidden;border:1px solid var(--border);background:#282a36}
+.CodeMirror{height:280px !important;font-family:'Courier New',monospace !important;font-size:13px !important;background:#282a36 !important;color:#f8f8f2 !important}
+.CodeMirror-gutters{background:#21222c !important;border-right:1px solid #191a21 !important}
+.CodeMirror-linenumber{color:#6272a4 !important}
+.form-row{margin-bottom:12px}
+.form-row:last-child{margin-bottom:0}
+label{display:block;font-size:12.5px;color:var(--text-2);margin-bottom:6px;font-weight:500}
+input[type="text"],input[type="url"],input[type="password"],select{width:100%;padding:12px 14px;background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:11px;color:var(--text);font-size:14px;font-family:inherit;outline:none;transition:all .25s;-webkit-user-select:text;user-select:text}
+input:focus,select:focus{border-color:var(--primary-light);box-shadow:0 0 0 4px rgba(99,102,241,0.15)}
+input::placeholder{color:rgba(148,163,184,.45)}
+.color-row{display:flex;gap:10px}
+.color-row input[type="text"]{flex:1}
+input[type="color"]{width:48px;height:44px;border:1px solid var(--border);border-radius:11px;background:transparent;cursor:pointer;padding:3px}
+.btn{width:100%;padding:13px 18px;border:none;border-radius:11px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-primary{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;box-shadow:0 8px 24px rgba(99,102,241,0.4)}
+.btn-primary:active{transform:scale(.97)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+.btn-secondary{background:rgba(255,255,255,0.08);color:var(--text);border:1px solid var(--border)}
+.btn-secondary:active{background:rgba(255,255,255,0.15);transform:scale(.97)}
+.btn-success{background:linear-gradient(135deg,#10B981,#059669);color:#fff;box-shadow:0 8px 24px rgba(16,185,129,0.4)}
+.btn-sm{padding:9px 12px;font-size:12px}
+.btn-row{display:flex;gap:8px}
+.btn-row .btn{flex:1}
+.info{background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.25);border-radius:10px;padding:11px 13px;font-size:12px;color:#C7D2FE;line-height:1.6;margin-bottom:12px}
+.info.warn{background:rgba(245,158,11,0.1);border-color:rgba(245,158,11,0.25);color:#FCD34D}
+.info.success{background:rgba(16,185,129,0.1);border-color:rgba(16,185,129,0.25);color:#6EE7B7}
+.info.danger{background:rgba(239,68,68,0.1);border-color:rgba(239,68,68,0.25);color:#FCA5A5}
+.info b{color:#fff}
+.option-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06)}
+.option-row:last-child{border-bottom:none}
+.option-row .label-wrap{flex:1}
+.option-row .label{font-size:13px;color:var(--text);font-weight:500}
+.option-row .hint{font-size:11px;color:var(--text-2);margin-top:1px}
+.switch{position:relative;width:44px;height:25px;flex-shrink:0;background:rgba(255,255,255,0.15);border-radius:13px;cursor:pointer;transition:all .25s;margin-left:12px}
+.switch.on{background:var(--primary)}
+.switch::after{content:'';position:absolute;top:3px;left:3px;width:19px;height:19px;border-radius:50%;background:#fff;transition:all .25s cubic-bezier(.16,1,.3,1)}
+.switch.on::after{transform:translateX(19px)}
+.icon-upload{display:flex;gap:12px;align-items:center}
+.icon-preview{width:72px;height:72px;border-radius:16px;background:linear-gradient(135deg,var(--primary),var(--primary-dark));display:flex;align-items:center;justify-content:center;overflow:hidden;border:2px solid var(--border);flex-shrink:0}
+.icon-preview img{width:100%;height:100%;object-fit:cover}
+.icon-preview .placeholder{font-size:10px;font-weight:600;text-align:center;color:rgba(255,255,255,0.7);line-height:1.3;padding:4px}
+.icon-actions{flex:1;display:flex;flex-direction:column;gap:6px}
+.progress{height:5px;background:rgba(0,0,0,0.3);border-radius:3px;overflow:hidden;margin-top:12px;display:none}
+.progress.show{display:block}
+.progress-bar{height:100%;width:0%;border-radius:3px;background:linear-gradient(90deg,var(--primary),var(--primary-light));transition:width .3s ease}
+.output{background:#000;border-radius:10px;padding:12px;font-family:'Courier New',monospace;font-size:11px;color:#6EE7B7;max-height:280px;overflow:auto;white-space:pre-wrap;word-break:break-word;display:none;margin-top:10px;line-height:1.6}
+.output.show{display:block}
+.output::-webkit-scrollbar{width:4px}
+.output::-webkit-scrollbar-thumb{background:var(--primary);border-radius:2px}
+.output .err{color:#FCA5A5}
+.output .warn{color:#FCD34D}
+.output .ok{color:#6EE7B7}
+.output .info{color:#A5B4FC}
+.build-steps{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.build-step{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.06);font-size:12.5px;transition:all .3s}
+.build-step .icon-circle{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;background:rgba(148,163,184,0.2);color:#94A3B8;transition:all .3s}
+.build-step.running .icon-circle{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;animation:pulse 1.5s infinite}
+.build-step.done .icon-circle{background:linear-gradient(135deg,#10B981,#059669);color:#fff}
+.build-step.fail .icon-circle{background:linear-gradient(135deg,#EF4444,#DC2626);color:#fff}
+.build-step .text{flex:1;color:var(--text-2)}
+.build-step.done .text{color:var(--text)}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+.apk-result{display:none;margin-top:14px;background:linear-gradient(135deg,rgba(16,185,129,0.15),rgba(5,150,105,0.1));border:1px solid rgba(16,185,129,0.35);border-radius:14px;padding:18px;text-align:center}
+.apk-result.show{display:block}
+.apk-result .icon{font-size:36px;margin-bottom:10px;font-weight:800;color:#6EE7B7}
+.apk-result h3{font-size:16px;color:#6EE7B7;margin-bottom:6px}
+.apk-result p{font-size:12.5px;color:#A7F3D0;margin-bottom:14px;line-height:1.6}
+.apk-result .btn{margin-bottom:8px}
+.footer{position:fixed;bottom:0;left:0;right:0;padding:11px 16px max(env(safe-area-inset-bottom),13px);background:rgba(15,23,42,0.92);backdrop-filter:blur(20px);border-top:1px solid var(--border);z-index:100;display:flex;gap:8px}
+.footer .btn{flex:1}
+.toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(100px);background:rgba(30,41,59,0.98);color:#fff;padding:12px 20px;border-radius:30px;font-size:13px;border:1px solid var(--border);box-shadow:0 10px 30px rgba(0,0,0,0.4);z-index:1000;opacity:0;transition:all .35s cubic-bezier(.16,1,.3,1);pointer-events:none;max-width:88%;text-align:center;font-weight:500}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.success{background:rgba(16,185,129,0.95)}
+.toast.error{background:rgba(239,68,68,0.95)}
+.toast.warn{background:rgba(245,158,11,0.95)}
+.proxy-item{display:flex;align-items:center;justify-content:space-between;padding:8px 11px;background:rgba(0,0,0,0.25);border-radius:8px;font-size:11.5px;border:1px solid rgba(255,255,255,0.05);margin-bottom:5px}
+.proxy-item .name{color:var(--text-2)}
+.proxy-item .status{font-size:10.5px;padding:2px 8px;border-radius:8px;font-weight:600}
+.status.wait{background:rgba(148,163,184,0.15);color:#94A3B8}
+.status.loading{background:rgba(245,158,11,0.2);color:#FCD34D}
+.status.ok{background:rgba(16,185,129,0.2);color:#6EE7B7}
+.status.fail{background:rgba(239,68,68,0.2);color:#FCA5A5}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>HTML to APK Builder</h1>
+<span class="badge" id="statusBadge">Chưa cấu hình</span>
+</div>
+<div class="user-bar hidden" id="userBar">
+<img class="user-avatar" id="userAvatar" src="" alt="Avatar">
+<div class="user-info">
+<div class="name" id="userBarName">-</div>
+<div class="repo" id="userBarRepo">-</div>
+</div>
+<button class="btn-logout" onclick="logout()">Đăng xuất</button>
+</div>
+<div class="main">
+<div class="card">
+<div class="card-title"><div class="left"><span class="num">1</span><span>Cấu hình GitHub</span></div></div>
+<div class="info warn"><b>Bảo mật:</b> Thông tin đăng nhập lưu <b>chỉ trên máy bạn</b> (localStorage). Không gửi đi đâu cả.</div>
+<div class="form-row"><label>GitHub Token (ghp_xxx)</label><input type="password" id="ghToken" placeholder="ghp_xxxxxxxxxxxxxxxx"></div>
+<div class="form-row"><label>GitHub Username</label><input type="text" id="ghUser" placeholder="username-cua-ban"></div>
+<div class="form-row"><label>Tên Repository</label><input type="text" id="ghRepo" placeholder="apk-builder" value="apk-builder"></div>
+<div class="btn-row" style="margin-top:10px">
+<button class="btn btn-secondary btn-sm" onclick="clearGithubConfig()">Xóa cấu hình</button>
+<button class="btn btn-primary btn-sm" onclick="saveAndTestGithub()">Lưu và kiểm tra</button>
+</div>
+<div id="githubStatus" style="margin-top:12px"></div>
+</div>
+<div class="card">
+<div class="card-title"><div class="left"><span class="num">2</span><span>Nội dung HTML</span></div><span style="font-size:10.5px;color:var(--text-2)" id="charCount">0 ký tự</span></div>
+<div class="tabs">
+<button class="tab active" data-tab="editor" onclick="switchTab('editor')">Editor</button>
+<button class="tab" data-tab="file" onclick="switchTab('file')">File</button>
+<button class="tab" data-tab="url" onclick="switchTab('url')">URL</button>
+</div>
+<div class="tab-content active" id="tab-editor">
+<div class="editor-wrap"><textarea id="codeEditor"></textarea></div>
+<div class="btn-row" style="margin-top:10px">
+<button class="btn btn-secondary btn-sm" onclick="loadDemo()">Nạp demo</button>
+<button class="btn btn-secondary btn-sm" onclick="clearEditor()">Xóa hết</button>
+<button class="btn btn-secondary btn-sm" onclick="downloadHtml()">Tải HTML</button>
+</div>
+</div>
+<div class="tab-content" id="tab-file">
+<div style="border:2px dashed var(--border);border-radius:12px;padding:26px 16px;text-align:center;cursor:pointer;background:rgba(0,0,0,0.15)" onclick="document.getElementById('fileInput').click()">
+<div style="font-size:14px;font-weight:600;margin-bottom:6px">Chọn file HTML</div>
+<div style="font-size:12px;color:var(--text-2)">File sẽ nạp vào editor</div>
+</div>
+<input type="file" id="fileInput" accept=".html,.htm,.txt" style="display:none" onchange="loadFile(event)">
+<div id="fileName" style="margin-top:10px;font-size:12px;color:var(--text-2);text-align:center"></div>
+</div>
+<div class="tab-content" id="tab-url">
+<div class="form-row"><label>URL trang web</label><input type="url" id="urlInput" placeholder="https://example.com"></div>
+<button class="btn btn-primary btn-sm" onclick="loadFromUrl()">Tải HTML từ URL</button>
+<div class="info" style="margin-top:12px">Tool tự thử nhiều proxy. Nếu thất bại, dùng tab <b>File</b>.</div>
+<div id="proxyList" style="margin-top:10px"></div>
+</div>
+</div>
+<div class="card">
+<div class="card-title"><div class="left"><span class="num">3</span><span>Thông tin ứng dụng</span></div></div>
+<div class="form-row"><label>Tên ứng dụng</label><input type="text" id="appName" placeholder="My App" value="My App"></div>
+<div class="form-row"><label>Package Name</label><input type="text" id="pkgName" placeholder="com.example.myapp" value="com.example.myapp"></div>
+<div class="form-row"><label>Phiên bản</label><input type="text" id="appVer" placeholder="1.0.0" value="1.0.0"></div>
+<div class="form-row"><label>Màu chủ đề</label>
+<div class="color-row">
+<input type="text" id="themeColorText" value="#6366F1" oninput="syncColor('text')">
+<input type="color" id="themeColorPicker" value="#6366F1" oninput="syncColor('picker')">
+</div>
+</div>
+</div>
+<div class="card">
+<div class="card-title"><div class="left"><span class="num">4</span><span>Icon ứng dụng</span></div></div>
+<div class="icon-upload">
+<div class="icon-preview" id="iconPreview"><div class="placeholder">Chưa có icon</div></div>
+<div class="icon-actions">
+<button class="btn btn-secondary btn-sm" onclick="document.getElementById('iconInput').click()">Chọn ảnh</button>
+<button class="btn btn-secondary btn-sm" onclick="resetIcon()">Xóa icon</button>
+</div>
+</div>
+<input type="file" id="iconInput" accept="image/*" style="display:none" onchange="loadIcon(event)">
+<div class="info" style="margin-top:12px">Khuyến nghị 512x512 px. PNG hoặc JPG.</div>
+</div>
+<div class="card">
+<div class="card-title"><div class="left"><span class="num">5</span><span>Tùy chọn</span></div></div>
+<div class="option-row"><div class="label-wrap"><div class="label">JavaScript</div><div class="hint">Chạy script trong HTML</div></div><div class="switch on" data-opt="js" onclick="toggleSwitch(this)"></div></div>
+<div class="option-row"><div class="label-wrap"><div class="label">Thanh tiến trình</div><div class="hint">Progress bar khi tải trang</div></div><div class="switch on" data-opt="progress" onclick="toggleSwitch(this)"></div></div>
+<div class="option-row"><div class="label-wrap"><div class="label">Khóa xoay dọc</div><div class="hint">Chỉ portrait</div></div><div class="switch" data-opt="lockOrientation" onclick="toggleSwitch(this)"></div></div>
+<div class="option-row"><div class="label-wrap"><div class="label">Toàn màn hình</div><div class="hint">Ẩn status bar</div></div><div class="switch" data-opt="fullscreen" onclick="toggleSwitch(this)"></div></div>
+<div class="option-row"><div class="label-wrap"><div class="label">Rung khi tương tác</div><div class="hint">Haptic feedback</div></div><div class="switch on" data-opt="haptic" onclick="toggleSwitch(this)"></div></div>
+<div class="option-row"><div class="label-wrap"><div class="label">Cho phép zoom</div><div class="hint">Phóng to/thu nhỏ</div></div><div class="switch" data-opt="zoom" onclick="toggleSwitch(this)"></div></div>
+<div class="option-row"><div class="label-wrap"><div class="label">Dark mode</div><div class="hint">WebView force dark</div></div><div class="switch" data-opt="darkMode" onclick="toggleSwitch(this)"></div></div>
+</div>
+<div class="card">
+<div class="card-title"><div class="left"><span class="num">6</span><span>Tạo file APK</span></div></div>
+<div class="info">Tool tự động:<br>1. Tạo project Android trên GitHub<br>2. Push code lên repository<br>3. GitHub Actions build APK<br>4. Trả về link tải file APK<br><b>Thời gian:</b> 2-3 phút.</div>
+<button class="btn btn-primary" id="buildBtn" onclick="buildAPK()">Bắt đầu build APK</button>
+<div class="progress" id="progress"><div class="progress-bar" id="progressBar"></div></div>
+<div class="build-steps" id="buildSteps"></div>
+<div class="output" id="output"></div>
+<div class="apk-result" id="apkResult">
+<div class="icon">APK</div>
+<h3>APK đã sẵn sàng</h3>
+<p id="apkInfo">File APK đã được build thành công.</p>
+<button class="btn btn-success" onclick="downloadAPK()">Tải file APK</button>
+<button class="btn btn-secondary btn-sm" onclick="openActionsPage()">Xem trên GitHub Actions</button>
+</div>
+</div>
+<div class="card">
+<div class="card-title"><div class="left"><span class="num">?</span><span>Hướng dẫn lần đầu</span></div></div>
+<div class="info"><b>1. Tạo Token</b><br>Vào github.com/settings/tokens/new → Note: apk-builder → Tích <b>repo</b> + <b>workflow</b> → Generate → Copy.</div>
+<div class="info"><b>2. Tạo Repo</b><br>Vào github.com/new → Đặt tên (VD: apk-builder) → <b>Không</b> tích README → Create.</div>
+<div class="info"><b>3. Nhập vào Bước 1</b><br>Token + Username + Repo → Lưu và kiểm tra.</div>
+<div class="info"><b>4. Build</b><br>Nhập HTML → Thông tin app → Bắt đầu build → Đợi 2-3 phút → Tải APK.</div>
+</div>
+</div>
+<div class="footer">
+<button class="btn btn-secondary" onclick="scrollToBottom()">Tới build</button>
+<button class="btn btn-primary" onclick="buildAPK()">Tạo APK</button>
+</div>
+<div class="toast" id="toast"></div><script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closetag.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+<script>
+let cm=null,iconDataUrl=null,iconBase64=null,currentApkUrl=null,currentActionsUrl=null,pollTimer=null;
+const DEMO_HTML='<!DOCTYPE html>\n<html lang="vi">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width,initial-scale=1">\n<title>Demo</title>\n<style>\n*{margin:0;padding:0;box-sizing:border-box}\nbody{font-family:sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:20px}\n.card{background:rgba(255,255,255,.15);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.25);border-radius:24px;padding:32px 24px;text-align:center;max-width:400px;width:100%}\nh1{font-size:28px;margin-bottom:8px}\np{opacity:.9;font-size:14px;margin-bottom:20px}\nbutton{padding:14px 28px;border:none;border-radius:12px;background:#fff;color:#764ba2;font-weight:700;font-size:16px}\n</style>\n</head>\n<body>\n<div class="card">\n<h1>Demo App</h1>\n<p>Ung dung HTML da chay thanh cong</p>\n<button onclick="alert(\'OK!\')">Nhan thu</button>\n</div>\n</body>\n</html>';
+const PROXIES=[
+{name:'allorigins',build:u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u)},
+{name:'corsproxy.io',build:u=>'https://corsproxy.io/?'+encodeURIComponent(u)},
+{name:'codetabs',build:u=>'https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(u)},
+{name:'thingproxy',build:u=>'https://thingproxy.freeboard.io/fetch/'+u},
+{name:'jina.ai',build:u=>'https://r.jina.ai/'+u}
+];
+document.addEventListener('DOMContentLoaded',()=>{initEditor();loadGithubConfig();renderProxyList();});
+function initEditor(){cm=CodeMirror.fromTextArea(document.getElementById('codeEditor'),{mode:'htmlmixed',theme:'dracula',lineNumbers:true,lineWrapping:true,indentUnit:2,tabSize:2,autoCloseTags:true,autoCloseBrackets:true,matchBrackets:true,styleActiveLine:true});cm.setValue(DEMO_HTML);cm.on('change',updateCharCount);updateCharCount();setTimeout(()=>cm.refresh(),300);}
+function updateCharCount(){if(!cm)return;document.getElementById('charCount').textContent=cm.getValue().length.toLocaleString()+' ky tu';}
+
+function loadGithubConfig(){
+try{
+const cfg=JSON.parse(localStorage.getItem('ghConfig')||'{}');
+if(cfg.token)document.getElementById('ghToken').value=cfg.token;
+if(cfg.user)document.getElementById('ghUser').value=cfg.user;
+if(cfg.repo)document.getElementById('ghRepo').value=cfg.repo;
+if(cfg.token&&cfg.user&&cfg.repo){
+setStatusBadge('Đã lưu','ok');
+showUserBar(cfg.user,cfg.repo,cfg.avatar);
+}
+}catch(e){}
+}
+
+function showUserBar(user,repo,avatar){
+document.getElementById('userBar').classList.remove('hidden');
+document.getElementById('userBarName').textContent='@'+user;
+document.getElementById('userBarRepo').textContent=repo;
+const av=document.getElementById('userAvatar');
+if(avatar){av.src=avatar;}else{av.src='https://github.com/'+user+'.png?size=80';}
+}
+
+function hideUserBar(){document.getElementById('userBar').classList.add('hidden');}
+
+function saveGithubConfig(data){
+try{localStorage.setItem('ghConfig',JSON.stringify(data));}catch(e){}
+}
+
+function clearGithubConfig(){
+localStorage.removeItem('ghConfig');
+document.getElementById('ghToken').value='';
+document.getElementById('ghUser').value='';
+document.getElementById('ghRepo').value='apk-builder';
+document.getElementById('githubStatus').innerHTML='';
+setStatusBadge('Chưa cấu hình','');
+hideUserBar();
+toast('Đã xóa cấu hình');
+}
+
+function logout(){
+if(confirm('Đăng xuất và xóa cấu hình?')){clearGithubConfig();}
+}
+
+function setStatusBadge(text,type){const el=document.getElementById('statusBadge');el.textContent=text;el.className='badge'+(type?' '+type:'');}
+
+async function saveAndTestGithub(){
+const token=document.getElementById('ghToken').value.trim();
+const user=document.getElementById('ghUser').value.trim();
+const repo=document.getElementById('ghRepo').value.trim();
+if(!token||!user||!repo){toast('Nhập đủ 3 trường','error');return;}
+const status=document.getElementById('githubStatus');
+status.innerHTML='<div class="info">Đang kiểm tra kết nối...</div>';
+try{
+const userRes=await fetch('https://api.github.com/user',{headers:{'Authorization':'token '+token}});
+if(userRes.status===401){status.innerHTML='<div class="info danger">Token sai hoặc hết hạn (401)</div>';setStatusBadge('Lỗi token','err');return;}
+if(!userRes.ok)throw new Error('HTTP '+userRes.status);
+const userData=await userRes.json();
+const repoRes=await fetch('https://api.github.com/repos/'+user+'/'+repo,{headers:{'Authorization':'token '+token}});
+if(repoRes.status===404){status.innerHTML='<div class="info danger">Không tìm thấy repo <b>'+user+'/'+repo+'</b></div>';setStatusBadge('Lỗi repo','err');return;}
+if(!repoRes.ok)throw new Error('HTTP '+repoRes.status);
+const repoData=await repoRes.json();
+const cfg={
+token:token,user:user,repo:repo,
+avatar:userData.avatar_url||'',
+name:userData.name||userData.login
+};
+saveGithubConfig(cfg);
+setStatusBadge('Đã kết nối','ok');
+showUserBar(user,repo,cfg.avatar);
+status.innerHTML='<div class="info success"><b>Kết nối thành công</b><br>User: '+userData.login+'<br>Repo: '+repoData.full_name+'<br>Quyền: '+(repoData.permissions&&repoData.permissions.push?'Push OK':'Chỉ đọc')+'</div>';
+toast('Đã lưu cấu hình','success');
+}catch(err){status.innerHTML='<div class="info danger">Lỗi: '+err.message+'</div>';setStatusBadge('Lỗi kết nối','err');}
+}
+
+function switchTab(name){document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===name));document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));document.getElementById('tab-'+name).classList.add('active');if(name==='editor'&&cm)setTimeout(()=>cm.refresh(),100);}
+function loadDemo(){if(cm){cm.setValue(DEMO_HTML);toast('Đã nạp demo');}}
+function clearEditor(){if(cm&&confirm('Xóa hết?')){cm.setValue('');toast('Đã xóa');}}
+function downloadHtml(){if(!cm)return;const blob=new Blob([cm.getValue()],{type:'text/html'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='index.html';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Đã tải index.html','success');}
+function loadFile(e){const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{cm.setValue(ev.target.result);document.getElementById('fileName').textContent='Đã tải: '+file.name;toast('Đã tải file','success');switchTab('editor');};reader.readAsText(file);}
+function renderProxyList(){const list=document.getElementById('proxyList');if(!list)return;list.innerHTML='';PROXIES.forEach((p,i)=>{const el=document.createElement('div');el.className='proxy-item';el.innerHTML='<span class="name">'+(i+1)+'. '+p.name+'</span><span class="status wait" id="proxy-'+i+'">Chờ</span>';list.appendChild(el);});}
+function setProxyStatus(i,type,text){const el=document.getElementById('proxy-'+i);if(el){el.className='status '+type;el.textContent=text;}}
+
+async function loadFromUrl(){
+const url=document.getElementById('urlInput').value.trim();
+if(!url){toast('Nhập URL','error');return;}
+if(!/^https?:\/\//i.test(url)){toast('URL phải bắt đầu http:// hoặc https://','error');return;}
+PROXIES.forEach((_,i)=>setProxyStatus(i,'wait','Chờ'));
+toast('Đang thử '+PROXIES.length+' proxy...');
+for(let i=0;i<PROXIES.length;i++){
+setProxyStatus(i,'loading','Đang thử...');
+try{
+const ctrl=new AbortController();
+const t=setTimeout(()=>ctrl.abort(),12000);
+const res=await fetch(PROXIES[i].build(url),{signal:ctrl.signal});
+clearTimeout(t);
+if(!res.ok){setProxyStatus(i,'fail','HTTP '+res.status);continue;}
+const html=await res.text();
+if(!html||html.length<30){setProxyStatus(i,'fail','Rỗng');continue;}
+setProxyStatus(i,'ok','OK');
+cm.setValue(html);
+toast('Đã tải từ '+PROXIES[i].name,'success');
+haptic(15);
+return;
+}catch(err){setProxyStatus(i,'fail',err.name==='AbortError'?'Timeout':'Lỗi');}
+}
+toast('Tất cả proxy thất bại','error');
+}
+
+function loadIcon(e){const file=e.target.files[0];if(!file||!file.type.startsWith('image/')){toast('Chọn file ảnh','error');return;}const reader=new FileReader();reader.onload=ev=>{iconDataUrl=ev.target.result;iconBase64=iconDataUrl.split(',')[1];document.getElementById('iconPreview').innerHTML='<img src="'+iconDataUrl+'">';toast('Đã tải icon','success');};reader.readAsDataURL(file);}
+function resetIcon(){iconDataUrl=null;iconBase64=null;document.getElementById('iconInput').value='';document.getElementById('iconPreview').innerHTML='<div class="placeholder">Chưa có icon</div>';toast('Đã xóa icon');}
+function toggleSwitch(el){el.classList.toggle('on');haptic(10);}
+function syncColor(src){if(src==='text'){const v=document.getElementById('themeColorText').value.trim();if(/^#[0-9A-Fa-f]{6}$/.test(v))document.getElementById('themeColorPicker').value=v;}else{document.getElementById('themeColorText').value=document.getElementById('themeColorPicker').value.toUpperCase();}}
+function getOptions(){const o={};document.querySelectorAll('.switch[data-opt]').forEach(s=>o[s.dataset.opt]=s.classList.contains('on'));return o;}
+const BUILD_STEPS=['Xác thực GitHub','Tạo file workflow','Tạo project Android','Push code lên GitHub','Kích hoạt build','Đợi GitHub Actions build APK','Tải APK về'];
+function renderBuildSteps(){const el=document.getElementById('buildSteps');el.innerHTML='';BUILD_STEPS.forEach((s,i)=>{const d=document.createElement('div');d.className='build-step';d.id='bs-'+i;d.innerHTML='<div class="icon-circle">'+(i+1)+'</div><div class="text">'+s+'</div>';el.appendChild(d);});}
+function setBuildStep(i,state){const el=document.getElementById('bs-'+i);if(!el)return;el.classList.remove('running','done','fail');if(state)el.classList.add(state);}
+function logOutput(msg,cls){const out=document.getElementById('output');out.classList.add('show');const span=cls?'<span class="'+cls+'">'+escapeHtml(msg)+'</span>':escapeHtml(msg);out.innerHTML+=span+'\n';out.scrollTop=out.scrollHeight;}
+
+async function buildAPK(){
+if(pollTimer){clearInterval(pollTimer);pollTimer=null;}
+const token=document.getElementById('ghToken').value.trim();
+const user=document.getElementById('ghUser').value.trim();
+const repo=document.getElementById('ghRepo').value.trim();
+if(!token||!user||!repo){toast('Cấu hình GitHub trước (Bước 1)','error');document.querySelector('.main').scrollTop=0;return;}
+const html=cm?cm.getValue().trim():'';
+if(!html){toast('Chưa có HTML','error');return;}
+const appName=document.getElementById('appName').value.trim()||'My App';
+const pkgRaw=document.getElementById('pkgName').value.trim()||'com.example.myapp';
+const pkgName=pkgRaw.replace(/[^a-zA-Z0-9._]/g,'');
+const appVer=document.getElementById('appVer').value.trim()||'1.0.0';
+const themeColor=document.getElementById('themeColorText').value.trim()||'#6366F1';
+const opts=getOptions();
+if(!/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/.test(pkgName)){toast('Package name không hợp lệ','error');return;}
+const btn=document.getElementById('buildBtn');
+btn.disabled=true;
+document.getElementById('output').innerHTML='';
+document.getElementById('output').classList.add('show');
+document.getElementById('apkResult').classList.remove('show');
+document.getElementById('progress').classList.add('show');
+document.getElementById('progressBar').style.width='0%';
+renderBuildSteps();
+currentApkUrl=null;
+const log=(m,c)=>logOutput(m,c);
+const step=(i,s)=>{setBuildStep(i,s);document.getElementById('progressBar').style.width=((i+1)/BUILD_STEPS.length*100)+'%';};
+try{
+step(0,'running');log('[1/7] Xác thực GitHub...','info');
+const ur=await fetch('https://api.github.com/user',{headers:{'Authorization':'token '+token}});
+if(!ur.ok)throw new Error('Token không hợp lệ ('+ur.status+')');
+const ud=await ur.json();
+log('  User: '+ud.login,'ok');
+step(0,'done');
+step(1,'running');log('[2/7] Tạo workflow...','info');
+const workflowYml=buildWorkflowYml();
+step(1,'done');
+step(2,'running');log('[3/7] Tạo project Android...','info');
+const projectFiles=await buildProjectFiles({html,appName,pkgName,appVer,themeColor,opts});
+log('  Số file: '+projectFiles.length,'ok');
+step(2,'done');
+step(3,'running');log('[4/7] Push code (chậm nhưng chắc)...','info');
+await pushToGithub({token,user,repo,files:projectFiles.concat([{path:'.github/workflows/build.yml',content:workflowYml}]),onProgress:(i,total,path)=>{log('  ['+i+'/'+total+'] '+path,'info');}});
+log('  Đã push thành công','ok');
+step(3,'done');
+step(4,'running');log('[5/7] Kích hoạt build...','info');
+const runId=await triggerWorkflow({token,user,repo});
+log('  Run ID: '+runId,'ok');
+currentActionsUrl='https://github.com/'+user+'/'+repo+'/actions';
+step(4,'done');
+step(5,'running');log('[6/7] Đợi build (~2-3 phút)...','info');
+const apkUrl=await pollWorkflow({token,user,repo,runId,onStatus:(msg,cls)=>log('  '+msg,cls)});
+log('  Xong','ok');
+step(5,'done');
+step(6,'running');log('[7/7] Lấy APK...','info');
+currentApkUrl=apkUrl;
+step(6,'done');
+document.getElementById('apkInfo').innerHTML='File APK đã sẵn sàng.<br><b>'+appName+'</b> v'+appVer+'<br>Package: '+pkgName;
+document.getElementById('apkResult').classList.add('show');
+toast('APK sẵn sàng!','success');
+haptic([15,30,15]);
+document.querySelector('.main').scrollTop=document.querySelector('.main').scrollHeight;
+}catch(err){
+log('LỖI: '+err.message,'err');
+BUILD_STEPS.forEach((_,i)=>{const el=document.getElementById('bs-'+i);if(el&&el.classList.contains('running')){el.classList.remove('running');el.classList.add('fail');}});
+toast('Lỗi: '+err.message,'error');
+}
+btn.disabled=false;
+}
+
+function buildWorkflowYml(){return 'name: Build APK\n\non:\n  push:\n    branches: [ main, master ]\n  workflow_dispatch:\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-java@v4\n        with:\n          java-version: \'17\'\n          distribution: \'temurin\'\n      - uses: android-actions/setup-android@v3\n      - run: chmod +x ./gradlew || true\n      - run: ./gradlew assembleDebug --no-daemon\n      - uses: actions/upload-artifact@v4\n        with:\n          name: app-debug\n          path: app/build/outputs/apk/debug/app-debug.apk\n          if-no-files-found: error\n';}
+
+async function buildProjectFiles({html,appName,pkgName,appVer,themeColor,opts}){
+const pkgPath=pkgName.replace(/\./g,'/');
+const orientation=opts.lockOrientation?'portrait':'unspecified';
+const safeApp=appName.replace(/"/g,'\\"');
+const files=[];
+files.push({path:'gradlew',content:'#!/bin/sh\nexec gradle "$@"\n'});
+files.push({path:'settings.gradle',content:'pluginManagement {\n    repositories {\n        google()\n        mavenCentral()\n        gradlePluginPortal()\n    }\n}\ndependencyResolutionManagement {\n    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)\n    repositories {\n        google()\n        mavenCentral()\n    }\n}\nrootProject.name = "'+appName.replace(/"/g,'')+'"\ninclude \':app\'\n'});
+files.push({path:'build.gradle',content:'buildscript {\n    repositories {\n        google()\n        mavenCentral()\n    }\n    dependencies {\n        classpath \'com.android.tools.build:gradle:8.1.0\'\n    }\n}\nallprojects {\n    repositories {\n        google()\n        mavenCentral()\n    }\n}\n'});
+files.push({path:'gradle.properties',content:'android.useAndroidX=true\nandroid.enableJetifier=true\norg.gradle.jvmargs=-Xmx2048m\nandroid.nonTransitiveRClass=true\n'});
+files.push({path:'app/build.gradle',content:'plugins {\n    id \'com.android.application\'\n}\n\nandroid {\n    namespace \''+pkgName+'\'\n    compileSdk 34\n    defaultConfig {\n        applicationId "'+pkgName+'"\n        minSdk 21\n        targetSdk 34\n        versionCode 1\n        versionName "'+appVer+'"\n    }\n    buildTypes {\n        release {\n            minifyEnabled false\n        }\n    }\n    compileOptions {\n        sourceCompatibility JavaVersion.VERSION_1_8\n        targetCompatibility JavaVersion.VERSION_1_8\n    }\n}\n\ndependencies {\n    implementation \'androidx.appcompat:appcompat:1.6.1\'\n    implementation \'androidx.constraintlayout:constraintlayout:2.1.4\'\n}\n'});
+files.push({path:'app/src/main/AndroidManifest.xml',content:'<?xml version="1.0" encoding="utf-8"?>\n<manifest xmlns:android="http://schemas.android.com/apk/res/android"\n    package="'+pkgName+'">\n    <uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>\n    <uses-permission android:name="android.permission.VIBRATE"/>\n    <application\n        android:allowBackup="true"\n        android:icon="@mipmap/ic_launcher"\n        android:roundIcon="@mipmap/ic_launcher_round"\n        android:label="@string/app_name"\n        android:theme="@style/AppTheme"\n        android:hardwareAccelerated="true"\n        android:usesCleartextTraffic="true">\n        <activity\n            android:name=".MainActivity"\n            android:exported="true"\n            android:screenOrientation="'+orientation+'"\n            android:configChanges="orientation|screenSize|keyboardHidden|uiMode">\n            <intent-filter>\n                <action android:name="android.intent.action.MAIN"/>\n                <category android:name="android.intent.category.LAUNCHER"/>\n            </intent-filter>\n        </activity>\n    </application>\n</manifest>\n'});
+const fullscreenCode=opts.fullscreen?'\n        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {\n            getWindow().setDecorFitsSystemWindows(false);\n        }':'';
+const progressCode=opts.progress?'\n        webView.setWebChromeClient(new WebChromeClient() {\n            @Override\n            public void onProgressChanged(WebView v, int p) {\n                progressBar.setProgress(p);\n            }\n        });':'';
+const progressFinish=opts.progress?'progressBar.setVisibility(View.GONE);':'';
+files.push({path:'app/src/main/java/'+pkgPath+'/MainActivity.java',content:'package '+pkgName+';\n\nimport android.annotation.SuppressLint;\nimport android.os.Build;\nimport android.os.Bundle;\nimport android.view.KeyEvent;\nimport android.view.View;\nimport android.view.WindowManager;\nimport android.webkit.WebChromeClient;\nimport android.webkit.WebSettings;\nimport android.webkit.WebView;\nimport android.webkit.WebViewClient;\nimport android.widget.ProgressBar;\nimport androidx.appcompat.app.AppCompatActivity;\n\npublic class MainActivity extends AppCompatActivity {\n    private WebView webView;\n    '+(opts.progress?'private ProgressBar progressBar;':'')+'\n    @SuppressLint("SetJavaScriptEnabled")\n    @Override\n    protected void onCreate(Bundle savedInstanceState) {\n        super.onCreate(savedInstanceState);\n        '+fullscreenCode+'\n        setContentView(R.layout.activity_main);\n        webView = findViewById(R.id.webView);\n        '+(opts.progress?'progressBar = findViewById(R.id.progressBar);':'')+'\n        WebSettings s = webView.getSettings();\n        s.setJavaScriptEnabled('+opts.js+');\n        s.setDomStorageEnabled(true);\n        s.setAllowFileAccess(true);\n        s.setLoadWithOverviewMode(true);\n        s.setUseWideViewPort(true);\n        s.setBuiltInZoomControls('+opts.zoom+');\n        s.setDisplayZoomControls(false);\n        s.setSupportZoom('+opts.zoom+');\n        s.setCacheMode(WebSettings.LOAD_DEFAULT);\n        s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);\n        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {\n            s.setForceDark('+(opts.darkMode?'WebSettings.FORCE_DARK_ON':'WebSettings.FORCE_DARK_OFF')+');\n        }\n        webView.setWebViewClient(new WebViewClient() {\n            @Override\n            public void onPageFinished(WebView v, String url) {\n                '+progressFinish+'\n            }\n        });\n'+progressCode+'\n        '+(opts.haptic?'webView.setHapticFeedbackEnabled(true);':'')+'\n        webView.loadUrl("file:///android_asset/index.html");\n    }\n    @Override\n    public boolean onKeyDown(int keyCode, KeyEvent event) {\n        if (keyCode == KeyEvent.KEYCODE_BACK && webView.canGoBack()) {\n            webView.goBack();\n            return true;\n        }\n        return super.onKeyDown(keyCode, event);\n    }\n}\n'});
+files.push({path:'app/src/main/res/layout/activity_main.xml',content:'<?xml version="1.0" encoding="utf-8"?>\n<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"\n    android:layout_width="match_parent"\n    android:layout_height="match_parent"\n    android:background="'+themeColor+'">\n    <WebView\n        android:id="@+id/webView"\n        android:layout_width="match_parent"\n        android:layout_height="match_parent"/>\n    '+(opts.progress?'<ProgressBar\n        android:id="@+id/progressBar"\n        style="?android:attr/progressBarStyleHorizontal"\n        android:layout_width="match_parent"\n        android:layout_height="3dp"\n        android:layout_gravity="top"\n        android:progressTint="'+themeColor+'"/>':'')+'\n</FrameLayout>\n'});
+files.push({path:'app/src/main/res/values/styles.xml',content:'<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <style name="AppTheme" parent="Theme.AppCompat.NoActionBar">\n        <item name="colorPrimary">'+themeColor+'</item>\n        <item name="colorPrimaryDark">'+themeColor+'</item>\n        <item name="colorAccent">'+themeColor+'</item>\n        <item name="android:windowBackground">'+themeColor+'</item>\n        <item name="android:statusBarColor">'+themeColor+'</item>\n    </style>\n</resources>\n'});
+files.push({path:'app/src/main/res/values/strings.xml',content:'<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <string name="app_name">'+escapeXml(safeApp)+'</string>\n</resources>\n'});
+files.push({path:'app/src/main/res/values/colors.xml',content:'<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="primary">'+themeColor+'</color>\n</resources>\n'});
+files.push({path:'app/src/main/assets/index.html',content:html});
+if(iconBase64){
+const img=await loadImage(iconDataUrl);
+if(img){
+const sizes={'mipmap-mdpi':48,'mipmap-hdpi':72,'mipmap-xhdpi':96,'mipmap-xxhdpi':144,'mipmap-xxxhdpi':192};
+for(const folder of Object.keys(sizes)){
+const b64=await resizeImageToBase64(img,sizes[folder]);
+if(b64){
+files.push({path:'app/src/main/res/'+folder+'/ic_launcher.png',content:b64,isBase64:true});
+files.push({path:'app/src/main/res/'+folder+'/ic_launcher_round.png',content:b64,isBase64:true});
+}
+}
+}
+}
+files.push({path:'README.md',content:'# '+appName+'\n\nPackage: '+pkgName+'\nVersion: '+appVer+'\n'});
+return files;
+}
+
+async function pushToGithub({token,user,repo,files,onProgress}){
+const api='https://api.github.com/repos/'+user+'/'+repo;
+const headers={'Authorization':'token '+token,'Content-Type':'application/json','Accept':'application/vnd.github+json'};
+
+let refRes=await fetch(api+'/git/ref/heads/main',{headers:headers});
+let branch='main';
+if(!refRes.ok){refRes=await fetch(api+'/git/ref/heads/master',{headers:headers});branch='master';}
+let baseSha=null;
+if(refRes.ok){
+const refData=await refRes.json();
+const c=await fetch(api+'/git/commits/'+refData.object.sha,{headers:headers});
+if(c.ok){const cd=await c.json();baseSha=cd.tree.sha;}
+}
+
+const treeItems=[];
+for(let i=0;i<files.length;i++){
+const f=files[i];
+if(onProgress)onProgress(i+1,files.length,f.path);
+const blobBody={content:f.content,encoding:f.isBase64?'base64':'utf-8'};
+
+let retries=3;
+let success=false;
+let lastErr=null;
+while(retries>0&&!success){
+try{
+const blobRes=await fetch(api+'/git/blobs',{
+method:'POST',
+headers:headers,
+body:JSON.stringify(blobBody)
+});
+if(!blobRes.ok){
+const err=await blobRes.json().catch(()=>({}));
+throw new Error(err.message||('HTTP '+blobRes.status));
+}
+const bd=await blobRes.json();
+treeItems.push({path:f.path,mode:'100644',type:'blob',sha:bd.sha});
+success=true;
+}catch(err){
+lastErr=err;
+retries--;
+if(retries>0){
+await new Promise(r=>setTimeout(r,1500));
+}
+}
+}
+if(!success)throw new Error('Blob lỗi ('+f.path+'): '+(lastErr?lastErr.message:'unknown'));
+await new Promise(r=>setTimeout(r,250));
+}
+
+const treeBody={tree:treeItems};
+if(baseSha)treeBody.base_tree=baseSha;
+const treeRes=await fetch(api+'/git/trees',{method:'POST',headers:headers,body:JSON.stringify(treeBody)});
+if(!treeRes.ok){const err=await treeRes.json().catch(()=>({}));throw new Error('Tree lỗi: '+(err.message||treeRes.status));}
+const td=await treeRes.json();
+
+const commitBody={message:'Build APK - '+new Date().toISOString(),tree:td.sha,parents:[]};
+if(refRes.ok){const rd=await refRes.json();commitBody.parents=[rd.object.sha];}
+const ncRes=await fetch(api+'/git/commits',{method:'POST',headers:headers,body:JSON.stringify(commitBody)});
+if(!ncRes.ok){const err=await ncRes.json().catch(()=>({}));throw new Error('Commit lỗi: '+(err.message||ncRes.status));}
+const nc=await ncRes.json();
+
+if(refRes.ok){
+const upd=await fetch(api+'/git/refs/heads/'+branch,{method:'PATCH',headers:headers,body:JSON.stringify({sha:nc.sha,force:true})});
+if(!upd.ok){const err=await upd.json().catch(()=>({}));throw new Error('Ref lỗi: '+(err.message||upd.status));}
+}else{
+const cr=await fetch(api+'/git/refs',{method:'POST',headers:headers,body:JSON.stringify({ref:'refs/heads/main',sha:nc.sha})});
+if(!cr.ok){const err=await cr.json().catch(()=>({}));throw new Error('Ref lỗi: '+(err.message||cr.status));}
+}
+}
+
+async function triggerWorkflow({token,user,repo}){
+const api='https://api.github.com/repos/'+user+'/'+repo;
+const headers={'Authorization':'token '+token,'Content-Type':'application/json','Accept':'application/vnd.github+json'};
+await fetch(api+'/actions/workflows/build.yml/dispatches',{method:'POST',headers:headers,body:JSON.stringify({ref:'main'})});
+for(let i=0;i<20;i++){
+await sleep(2000);
+const r=await fetch(api+'/actions/runs?per_page=5',{headers:headers});
+if(r.ok){
+const d=await r.json();
+if(d.workflow_runs&&d.workflow_runs.length>0){
+const l=d.workflow_runs[0];
+const age=(Date.now()-new Date(l.created_at).getTime())/1000;
+if(age<180)return l.id;
+}
+}
+}
+throw new Error('Không tìm thấy workflow run');
+}
+
+async function pollWorkflow({token,user,repo,runId,onStatus}){
+const api='https://api.github.com/repos/'+user+'/'+repo;
+const headers={'Authorization':'token '+token,'Accept':'application/vnd.github+json'};
+const start=Date.now();
+while(Date.now()-start<15*60*1000){
+await sleep(5000);
+const res=await fetch(api+'/actions/runs/'+runId,{headers:headers});
+if(!res.ok)continue;
+const data=await res.json();
+onStatus('Trạng thái: '+data.status+' / '+(data.conclusion||'đang chạy'));
+if(data.status==='completed'){
+if(data.conclusion==='success')return await getArtifactUrl({token,user,repo,runId});
+else throw new Error('Build thất bại: '+data.conclusion);
+}
+}
+throw new Error('Quá thời gian chờ');
+}
+
+async function getArtifactUrl({token,user,repo,runId}){
+const api='https://api.github.com/repos/'+user+'/'+repo;
+const headers={'Authorization':'token '+token,'Accept':'application/vnd.github+json'};
+const res=await fetch(api+'/actions/runs/'+runId+'/artifacts',{headers:headers});
+if(!res.ok)throw new Error('Không lấy được artifacts');
+const data=await res.json();
+if(!data.artifacts||data.artifacts.length===0)throw new Error('Không có artifact APK');
+return{url:data.artifacts[0].archive_download_url,name:data.artifacts[0].name,size:data.artifacts[0].size_in_bytes};
+}
+
+async function downloadAPK(){
+if(!currentApkUrl){toast('Chưa có APK','error');return;}
+const token=document.getElementById('ghToken').value.trim();
+toast('Đang tải APK...');
+try{
+const res=await fetch(currentApkUrl.url,{headers:{'Authorization':'token '+token}});
+if(!res.ok)throw new Error('HTTP '+res.status);
+const blob=await res.blob();
+const appName=document.getElementById('appName').value.trim()||'myapp';
+const safeName=appName.toLowerCase().replace(/[^a-z0-9]/g,'_')+'_apk.zip';
+const url=URL.createObjectURL(blob);
+const a=document.createElement('a');
+a.href=url;a.download=safeName;
+document.body.appendChild(a);a.click();document.body.removeChild(a);
+setTimeout(()=>URL.revokeObjectURL(url),1000);
+toast('Đã tải '+safeName,'success');
+haptic([15,30,15]);
+}catch(err){toast('Lỗi tải APK: '+err.message,'error');}
+}
+function openActionsPage(){if(currentActionsUrl)window.open(currentActionsUrl,'_blank');}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function escapeXml(s){return String(s).replace(/[<>&'"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;',"'":'&apos;','"':'&quot;'}[c]));}
+function loadImage(dataUrl){return new Promise(resolve=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=()=>resolve(null);img.src=dataUrl;});}
+function resizeImageToBase64(img,size){return new Promise(resolve=>{const canvas=document.createElement('canvas');canvas.width=size;canvas.height=size;const ctx=canvas.getContext('2d');ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(img,0,0,size,size);resolve(canvas.toDataURL('image/png').split(',')[1]);});}
+let toastTimer;
+function toast(msg,type){const el=document.getElementById('toast');el.textContent=msg;el.className='toast show'+(type?' '+type:'');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.className='toast',2600);}
+function haptic(p){if(navigator.vibrate)try{navigator.vibrate(p||10);}catch(e){}}
+function scrollToBottom(){const m=document.querySelector('.main');m.scrollTop=m.scrollHeight;}
+</script>
+</body>
+</html>
